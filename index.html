@@ -40,7 +40,7 @@ body {
   position: fixed;
   top: 18px;
   right: 18px;
-  z-index: 10;
+  z-index: 20;
   width: 54px;
   height: 54px;
   border-radius: 50%;
@@ -54,7 +54,7 @@ body {
   position: fixed;
   top: 84px;
   right: 18px;
-  z-index: 10;
+  z-index: 20;
   padding: 16px;
   border-radius: 14px;
   background: rgba(0,0,0,0.72);
@@ -83,7 +83,7 @@ body {
 
 <body>
 
-<button id="settingsBtn">⚙</button>
+<button id="settingsBtn" type="button">⚙</button>
 
 <div id="settingsPanel">
   <label for="timeSelect">타이머 시간</label>
@@ -99,6 +99,9 @@ body {
 
 <script>
 let totalSeconds = Number(localStorage.getItem("holdemTimerSeconds") || 30);
+
+const BLUE = "#007bff";
+const BLACK = "#000000";
 
 const timerEl = document.getElementById("timer");
 const settingsBtn = document.getElementById("settingsBtn");
@@ -122,8 +125,8 @@ function update(now) {
 
   document.body.style.background = `
     conic-gradient(
-      #000000 0deg ${angle}deg,
-      #007bff ${angle}deg 360deg
+      ${BLACK} 0deg ${angle}deg,
+      ${BLUE} ${angle}deg 360deg
     )
   `;
 
@@ -131,7 +134,7 @@ function update(now) {
     animationId = requestAnimationFrame(update);
   } else {
     timerEl.textContent = "0";
-    document.body.style.background = "#000000";
+    document.body.style.background = BLACK;
   }
 }
 
@@ -141,14 +144,29 @@ function startTimer() {
   animationId = requestAnimationFrame(update);
 }
 
+function isSettingsArea(target) {
+  return (
+    target.closest("#settingsPanel") ||
+    target.closest("#settingsBtn")
+  );
+}
+
 settingsBtn.addEventListener("click", (e) => {
   e.stopPropagation();
   settingsPanel.classList.toggle("show");
 });
 
+settingsBtn.addEventListener("touchstart", (e) => {
+  e.stopPropagation();
+}, { passive: false });
+
 settingsPanel.addEventListener("click", (e) => {
   e.stopPropagation();
 });
+
+settingsPanel.addEventListener("touchstart", (e) => {
+  e.stopPropagation();
+}, { passive: false });
 
 timeSelect.addEventListener("change", () => {
   totalSeconds = Number(timeSelect.value);
@@ -157,12 +175,16 @@ timeSelect.addEventListener("change", () => {
   startTimer();
 });
 
-document.body.addEventListener("click", () => {
+document.body.addEventListener("click", (e) => {
+  if (isSettingsArea(e.target)) return;
+
   settingsPanel.classList.remove("show");
   startTimer();
 });
 
-document.body.addEventListener("touchstart", () => {
+document.body.addEventListener("touchstart", (e) => {
+  if (isSettingsArea(e.target)) return;
+
   settingsPanel.classList.remove("show");
   startTimer();
 });
