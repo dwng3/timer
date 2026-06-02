@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>홀덤 타이머</title>
+<title>Holdem Timer</title>
 
 <style>
 * {
@@ -16,24 +16,85 @@ html, body {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  touch-action: manipulation;
   user-select: none;
   -webkit-user-select: none;
+  touch-action: manipulation;
 }
 
 body {
-  display: flex;
-  justify-content: center;
-  align-items: center;
   background: #007bff;
+  color: white;
   font-family: Arial, Helvetica, sans-serif;
 }
 
-#timer {
-  font-size: 30vw;
+#app {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+#blindInfo {
+  margin-top: 28px;
+  text-align: center;
+  z-index: 5;
+}
+
+#level {
+  font-size: 34px;
   font-weight: 900;
-  color: white;
+  letter-spacing: 2px;
+}
+
+#blinds {
+  margin-top: 8px;
+  font-size: 42px;
+  font-weight: 900;
+}
+
+#blindRemain {
+  margin-top: 24px;
+  font-size: 160px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+#timer {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28vw;
+  font-weight: 900;
   text-shadow: 0 0 20px rgba(0,0,0,0.6);
+  z-index: 3;
+}
+
+#blindControls {
+  position: fixed;
+  bottom: 22px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  display: flex;
+  gap: 10px;
+}
+
+button {
+  border: 2px solid rgba(255,255,255,0.75);
+  background: rgba(0,0,0,0.38);
+  color: white;
+  font-size: 20px;
+  font-weight: 800;
+  padding: 12px 18px;
+  border-radius: 14px;
+}
+
+#headsUpBtn.on {
+  background: rgba(255, 255, 255, 0.92);
+  color: #000;
 }
 
 #settingsBtn {
@@ -44,9 +105,7 @@ body {
   width: 54px;
   height: 54px;
   border-radius: 50%;
-  border: 2px solid rgba(255,255,255,0.7);
-  background: rgba(0,0,0,0.35);
-  color: white;
+  padding: 0;
   font-size: 26px;
 }
 
@@ -57,24 +116,34 @@ body {
   z-index: 20;
   padding: 16px;
   border-radius: 14px;
-  background: rgba(0,0,0,0.72);
+  background: rgba(0,0,0,0.78);
   color: white;
   display: none;
+  min-width: 260px;
 }
 
 #settingsPanel.show {
   display: block;
 }
 
-#settingsPanel label {
+.settingRow {
+  margin-bottom: 14px;
+}
+
+.settingRow:last-child {
+  margin-bottom: 0;
+}
+
+.settingRow label {
   display: block;
-  margin-bottom: 8px;
+  margin-bottom: 7px;
   font-size: 15px;
 }
 
-#timeSelect {
-  font-size: 22px;
-  padding: 8px 12px;
+select {
+  width: 100%;
+  font-size: 20px;
+  padding: 8px 10px;
   border-radius: 10px;
   border: none;
 }
@@ -83,44 +152,188 @@ body {
 
 <body>
 
-<button id="settingsBtn" type="button">⚙</button>
+<div id="app">
+  <button id="settingsBtn" type="button">⚙</button>
 
-<div id="settingsPanel">
-  <label for="timeSelect">타이머 시간</label>
-  <select id="timeSelect">
-    <option value="30">30초</option>
-    <option value="60">1분</option>
-    <option value="90">1분 30초</option>
-    <option value="120">2분</option>
-  </select>
+  <div id="settingsPanel">
+    <div class="settingRow">
+      <label for="actionTimeSelect">액션 타이머</label>
+      <select id="actionTimeSelect">
+        <option value="30">30초</option>
+        <option value="60">1분</option>
+        <option value="90">1분 30초</option>
+        <option value="120">2분</option>
+      </select>
+    </div>
+
+    <div class="settingRow">
+      <label for="blindTimeSelect">블라인드 레벨 시간</label>
+      <select id="blindTimeSelect">
+        <option value="300">5분</option>
+        <option value="600">10분</option>
+        <option value="900">15분</option>
+        <option value="1200">20분</option>
+      </select>
+    </div>
+
+    <div class="settingRow">
+      <label for="levelSelect">현재 블라인드 레벨</label>
+      <select id="levelSelect"></select>
+    </div>
+  </div>
+
+  <div id="blindInfo">
+    <div id="level">LEVEL 1</div>
+    <div id="blinds">SB 100 / BB 200</div>
+    <div id="blindRemain">10:00</div>
+  </div>
+
+  <div id="timer">30</div>
+
+  <div id="blindControls">
+    <button id="blindStartPauseBtn" type="button">BB 시작</button>
+    <button id="blindResetBtn" type="button">BB 초기화</button>
+    <button id="headsUpBtn" type="button">HU OFF</button>
+  </div>
 </div>
 
-<div id="timer">30</div>
-
 <script>
-let totalSeconds = Number(localStorage.getItem("holdemTimerSeconds") || 30);
-
 const BLUE = "#007bff";
 const BLACK = "#000000";
 
+const blindLevels = [
+  { level: 1, sb: 100, bb: 200 },
+  { level: 2, sb: 200, bb: 400 },
+  { level: 3, sb: 300, bb: 600 },
+  { level: 4, sb: 500, bb: 1000 },
+  { level: 5, sb: 700, bb: 1400 },
+  { level: 6, sb: 1000, bb: 2000 },
+  { level: 7, sb: 1500, bb: 3000 },
+  { level: 8, sb: 2000, bb: 4000 },
+  { level: 9, sb: 3000, bb: 6000 },
+  { level: 10, sb: 5000, bb: 10000 }
+];
+
+let actionTotalSeconds = Number(localStorage.getItem("holdemActionSeconds") || 30);
+let blindLevelSeconds = Number(localStorage.getItem("holdemBlindLevelSeconds") || 600);
+let headsUpMode = localStorage.getItem("holdemHeadsUpMode") === "true";
+
+let actionStartTime = null;
+let actionAnimationId = null;
+
+let blindRunning = false;
+let blindLevelIndex = Number(localStorage.getItem("holdemBlindLevelIndex") || 0);
+let blindRemainingSeconds = Number(localStorage.getItem("holdemBlindRemainingSeconds") || blindLevelSeconds);
+let blindIntervalId = null;
+
 const timerEl = document.getElementById("timer");
+const levelEl = document.getElementById("level");
+const blindsEl = document.getElementById("blinds");
+const blindRemainEl = document.getElementById("blindRemain");
+
 const settingsBtn = document.getElementById("settingsBtn");
 const settingsPanel = document.getElementById("settingsPanel");
-const timeSelect = document.getElementById("timeSelect");
+const actionTimeSelect = document.getElementById("actionTimeSelect");
+const blindTimeSelect = document.getElementById("blindTimeSelect");
+const levelSelect = document.getElementById("levelSelect");
 
-let startTime = null;
-let animationId = null;
+const blindStartPauseBtn = document.getElementById("blindStartPauseBtn");
+const blindResetBtn = document.getElementById("blindResetBtn");
+const headsUpBtn = document.getElementById("headsUpBtn");
 
-timeSelect.value = String(totalSeconds);
-timerEl.textContent = totalSeconds;
+function formatMoney(num) {
+  return num.toLocaleString("ko-KR");
+}
 
-function update(now) {
-  const elapsed = (now - startTime) / 1000;
-  const remaining = Math.max(totalSeconds - elapsed, 0);
+function formatTime(seconds) {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
+
+function getNextBlindLevelSeconds() {
+  return headsUpMode ? Math.floor(blindLevelSeconds / 2) : blindLevelSeconds;
+}
+
+function saveBlindState() {
+  localStorage.setItem("holdemBlindLevelIndex", String(blindLevelIndex));
+  localStorage.setItem("holdemBlindRemainingSeconds", String(blindRemainingSeconds));
+  localStorage.setItem("holdemHeadsUpMode", String(headsUpMode));
+}
+
+function renderBlind() {
+  const current = blindLevels[blindLevelIndex];
+
+  levelEl.textContent = `LEVEL ${current.level}`;
+  blindsEl.textContent = `SB ${formatMoney(current.sb)} / BB ${formatMoney(current.bb)}`;
+
+  if (blindLevelIndex >= blindLevels.length - 1 && blindRemainingSeconds <= 0) {
+    blindRemainEl.textContent = "FINAL";
+  } else {
+    blindRemainEl.textContent = formatTime(blindRemainingSeconds);
+  }
+
+  blindStartPauseBtn.textContent = blindRunning ? "BB 일시정지" : "BB 시작";
+
+  headsUpBtn.textContent = headsUpMode ? "HU ON" : "HU OFF";
+  headsUpBtn.classList.toggle("on", headsUpMode);
+
+  levelSelect.value = String(blindLevelIndex);
+}
+
+function nextBlindLevel() {
+  if (blindLevelIndex < blindLevels.length - 1) {
+    blindLevelIndex++;
+    blindRemainingSeconds = getNextBlindLevelSeconds();
+  } else {
+    blindRemainingSeconds = 0;
+    pauseBlindTimer();
+  }
+
+  saveBlindState();
+  renderBlind();
+}
+
+function startBlindTimer() {
+  if (blindRunning) return;
+
+  blindRunning = true;
+  renderBlind();
+
+  blindIntervalId = setInterval(() => {
+    blindRemainingSeconds--;
+
+    if (blindRemainingSeconds <= 0) {
+      nextBlindLevel();
+    } else {
+      saveBlindState();
+      renderBlind();
+    }
+  }, 1000);
+}
+
+function pauseBlindTimer() {
+  blindRunning = false;
+  clearInterval(blindIntervalId);
+  blindIntervalId = null;
+  renderBlind();
+}
+
+function resetBlindTimer() {
+  pauseBlindTimer();
+  blindLevelIndex = 0;
+  blindRemainingSeconds = getNextBlindLevelSeconds();
+  saveBlindState();
+  renderBlind();
+}
+
+function updateActionTimer(now) {
+  const elapsed = (now - actionStartTime) / 1000;
+  const remaining = Math.max(actionTotalSeconds - elapsed, 0);
 
   timerEl.textContent = Math.ceil(remaining);
 
-  const progress = Math.min(elapsed / totalSeconds, 1);
+  const progress = Math.min(elapsed / actionTotalSeconds, 1);
   const angle = progress * 360;
 
   document.body.style.background = `
@@ -131,65 +344,114 @@ function update(now) {
   `;
 
   if (remaining > 0) {
-    animationId = requestAnimationFrame(update);
+    actionAnimationId = requestAnimationFrame(updateActionTimer);
   } else {
     timerEl.textContent = "0";
     document.body.style.background = BLACK;
   }
 }
 
-function startTimer() {
-  cancelAnimationFrame(animationId);
-  startTime = performance.now();
-  animationId = requestAnimationFrame(update);
+function startActionTimer() {
+  cancelAnimationFrame(actionAnimationId);
+  actionStartTime = performance.now();
+  actionAnimationId = requestAnimationFrame(updateActionTimer);
 }
 
-function isSettingsArea(target) {
+function isControlArea(target) {
   return (
     target.closest("#settingsPanel") ||
-    target.closest("#settingsBtn")
+    target.closest("#settingsBtn") ||
+    target.closest("#blindControls")
   );
 }
+
+blindLevels.forEach((item, index) => {
+  const option = document.createElement("option");
+  option.value = String(index);
+  option.textContent = `LEVEL ${item.level} - ${formatMoney(item.sb)} / ${formatMoney(item.bb)}`;
+  levelSelect.appendChild(option);
+});
+
+actionTimeSelect.value = String(actionTotalSeconds);
+blindTimeSelect.value = String(blindLevelSeconds);
+levelSelect.value = String(blindLevelIndex);
 
 settingsBtn.addEventListener("click", (e) => {
   e.stopPropagation();
   settingsPanel.classList.toggle("show");
 });
 
-settingsBtn.addEventListener("touchstart", (e) => {
-  e.stopPropagation();
-}, { passive: false });
-
 settingsPanel.addEventListener("click", (e) => {
   e.stopPropagation();
 });
 
-settingsPanel.addEventListener("touchstart", (e) => {
-  e.stopPropagation();
-}, { passive: false });
+actionTimeSelect.addEventListener("change", () => {
+  actionTotalSeconds = Number(actionTimeSelect.value);
+  localStorage.setItem("holdemActionSeconds", String(actionTotalSeconds));
+  timerEl.textContent = actionTotalSeconds;
+  startActionTimer();
+});
 
-timeSelect.addEventListener("change", () => {
-  totalSeconds = Number(timeSelect.value);
-  localStorage.setItem("holdemTimerSeconds", totalSeconds);
-  timerEl.textContent = totalSeconds;
-  startTimer();
+blindTimeSelect.addEventListener("change", () => {
+  blindLevelSeconds = Number(blindTimeSelect.value);
+  localStorage.setItem("holdemBlindLevelSeconds", String(blindLevelSeconds));
+
+  blindRemainingSeconds = getNextBlindLevelSeconds();
+  saveBlindState();
+  renderBlind();
+});
+
+levelSelect.addEventListener("change", () => {
+  const selectedLevelIndex = Number(levelSelect.value);
+
+  pauseBlindTimer();
+
+  blindLevelIndex = selectedLevelIndex;
+  blindRemainingSeconds = getNextBlindLevelSeconds();
+
+  saveBlindState();
+  renderBlind();
+});
+
+blindStartPauseBtn.addEventListener("click", (e) => {
+  e.stopPropagation();
+
+  if (blindRunning) {
+    pauseBlindTimer();
+  } else {
+    startBlindTimer();
+  }
+});
+
+blindResetBtn.addEventListener("click", (e) => {
+  e.stopPropagation();
+  resetBlindTimer();
+});
+
+headsUpBtn.addEventListener("click", (e) => {
+  e.stopPropagation();
+
+  headsUpMode = !headsUpMode;
+  saveBlindState();
+  renderBlind();
 });
 
 document.body.addEventListener("click", (e) => {
-  if (isSettingsArea(e.target)) return;
+  if (isControlArea(e.target)) return;
 
   settingsPanel.classList.remove("show");
-  startTimer();
+  startActionTimer();
 });
 
 document.body.addEventListener("touchstart", (e) => {
-  if (isSettingsArea(e.target)) return;
+  if (isControlArea(e.target)) return;
 
   settingsPanel.classList.remove("show");
-  startTimer();
+  startActionTimer();
 });
 
-startTimer();
+renderBlind();
+startActionTimer();
 </script>
 
 </body>
